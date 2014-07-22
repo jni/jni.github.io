@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!-- saved from url=(0070)http://www.superfish.com/ws/sfads/server_layer.html?version=14.07.22.2 -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+    <title>Advertisements</title>
+
+    <script type="application/javascript">
+
+        var AdsServerLayer =
+        {
+            urlParams: {},
+            results: {},
+            debug: false,
+
+        log: function(msg) {
+            if (this.debug && window.console) {
+                var dDate = new Date();
+                console.log(dDate.getTime() + " - server_layer - " + msg);
+            }
+        },
+
+        initialize: function()
+            {
+        this.log("in initialize");
+                if (localStorage.getItem('sf_uninstall_ads'))
+                {
+                    this.log("uninstall ads");
+                    if(!this.debug)
+                        return;
+                }
+
+                this.urlParams = this.parseUrlParams(location.search.substring(1));
+
+                window.addEventListener("message", this.clientMessagesRouter.bind(this), false);
+
+                this.showAds();
+            },
+
+            clientMessagesRouter: function(event)
+            {
+                var dataArray = event.data.split('__similarproductsAdsNamespaceMarker');
+                if(dataArray.length == 1){
+                    this.log("in clientMessagesRouter - not valid data - " + event);
+                    return;
+                }
+
+                var data = dataArray[1];
+                this.log("in clientMessagesRouter - data - " + data);
+                data = data && JSON.parse(data) || null;
+
+                if (data && typeof this[data.fn] === 'function')
+                {
+                    this[data.fn](data.data);
+                }
+            },
+
+            showAds: function()
+            {
+                this.ajax(
+                {
+                    url: '../tpl/ads.tpl',
+                    data: {version: this.urlParams.version},
+                    success: function(data)
+                    {
+                        this.results.template = data;
+
+                        this.sendDataToClient.call(this);
+
+                    }.bind(this)
+                });
+            },
+
+            sendDataToClient: function()
+            {
+                var message =
+                {
+                    fn: 'processServerData',
+                    data: this.results
+                };
+
+                top.postMessage('__similarproductsAdsNamespaceMarker'+JSON.stringify(message), '*');
+            },
+
+            disableUnit: function(key)
+            {
+                this.log("in disableUnit - key - '" + key + "'");
+                if (key === 'sf_uninstall_ads')
+                {
+                    localStorage.setItem('sf_uninstall_ads', 1);
+                }
+            },
+
+            parseUrlParams: function(urlParams)
+            {
+        this.log("in parseUrlParams - urlParams - '" + urlParams + "'");
+        var result = {};
+                var param;
+
+                urlParams = urlParams.split('&');
+
+                for (var i=0, l=urlParams.length; i<l; i++)
+                {
+                    param = urlParams[i].split('=');
+
+                    result[param[0]] = decodeURIComponent(param[1]);
+                }
+
+                return result;
+            },
+
+            compileQueryString: function(obj)
+            {
+                var result = [];
+
+                for (key in obj)
+                {
+                    if (obj.hasOwnProperty(key))
+                    {
+                        result.push(key + '=' + encodeURIComponent(obj[key]));
+                    }
+                }
+
+                return result.join('&');
+            },
+
+            ajax: function(params)
+            {
+                var httpRequest;
+                var _this = this;
+
+                if (window.XMLHttpRequest)
+                {
+                    httpRequest = new XMLHttpRequest();
+                }
+                else if (window.ActiveXObject)
+                {
+                    httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+                }
+
+                if (params.success || params.error)
+                {
+                    httpRequest.onreadystatechange = function()
+                    {
+                        if (this.readyState === 4)
+                        {
+                            if (this.status === 200)
+                            {
+                                params.success && params.success.call(_this, this.responseText);
+                            }
+                            else
+                            {
+                                params.error && params.error.call(_this, this.responseText);
+                            }
+                        }
+                    }
+                }
+
+                if (params.data)
+                {
+                    params.url += '?' + this.compileQueryString(params.data);
+                }
+
+        this.log("in ajax - urlParams - '" + params.url + "'");
+                httpRequest.open(params.method && params.method.toUpperCase() || 'GET', params.url);
+                httpRequest.send();
+            }
+        };
+
+        AdsServerLayer.initialize();
+
+    </script>
+</head>
+<body>
+
+
+
+</body></html>
